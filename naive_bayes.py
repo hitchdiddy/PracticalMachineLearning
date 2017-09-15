@@ -10,18 +10,18 @@ import numpy as np
 from math import pi,exp
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+
 
 class NaiveBayes:
     def __init__(self):
         pass
+    def p(self,mu,sigma,point):
+        return sum([self.norm(m,s,p) for m,s,p in zip(mu,sigma,point)])
     def norm(self,mu,sigma,point):
         denom = (2 * pi * sigma) ** .5
         num = exp(-(point - mu) ** 2 / (2 * sigma))
-        return num / denom
-    def norm2d(self,mu,sigma,point,n=2):
-        denom = ((2 * pi)**n * np.linalg.det(sigma)) ** .5
-        dif = (point - mu)[np.newaxis]
-        num = exp(-0.5* np.matmul(np.matmul(dif, np.linalg.inv(sigma)),dif.transpose())[0][0])
         return num / denom
     #train is just for calculating each mu and sigma
     def train(self,x,y):
@@ -29,14 +29,15 @@ class NaiveBayes:
         y_unique = set(y)
         self.num_classes = len(y_unique)
         self.mu = np.zeros((len(y_unique),x.shape[1]))
-        self.sigma = np.zeros((len(y_unique),x.shape[1],x.shape[1]))
+        self.sigma = np.zeros((len(y_unique),x.shape[1]))
         self.py = np.zeros((len(y_unique)))
         for label in y_unique:
             label_feats = x[y == label]
             self.mu[label] = np.mean(label_feats,axis=0)
             n = len(label_feats)
             self.py[label] = n
-            self.sigma[label] = (1.0/(n-1.0))*(np.matmul(label_feats.transpose(),label_feats)-n*np.matmul(self.mu[label][np.newaxis].transpose(),self.mu[label][np.newaxis]))
+            v = ((label_feats - self.mu[label]) ** 2).mean(axis=0)
+            self.sigma[label] = v
             #1d
             #self.sigma[label] = np.mean(np.linalg.norm([(self.mu[label] - iterx) for iterx in label_feats],axis=1)**2)
 
@@ -46,10 +47,10 @@ class NaiveBayes:
         for i,xiter in enumerate(x):
             normalize = 0
             for mu, sigma, py in zip(self.mu, self.sigma, self.py):
-                normalize += self.norm2d(mu,sigma,xiter)
+                normalize += self.p(mu,sigma,xiter)*(py/self.num_train_data)
             probs = []
             for mu,sigma,py in zip(self.mu,self.sigma,self.py):
-                likelihood = self.norm2d(mu,sigma,xiter)
+                likelihood = self.p(mu,sigma,xiter)
                 prior = py/self.num_train_data
                 probs.append((likelihood*prior)/normalize)
             y_pred[i] = np.array(probs)
@@ -72,6 +73,18 @@ if __name__ == '__main__':
     x_train, x_test, y_train, y_test = train_test_split( x, y, test_size = 0.33, random_state = 42)
     nb = NaiveBayes()
     nb.train(x_train,y_train)
+
+
     print(nb.predict(x_test))
     print(y_test)
     print(nb.score(x_test,y_test))
+
+    from math import sqrt
+    ax = plt.gca()
+    plt.scatter(x_train[:,0],x_train[:,1])
+    for m,v in zip(nb.mu,nb.sigma):
+        el = Ellipse(xy=m,width=2*sqrt(v[0]),height=2*sqrt(v[1]))
+        ax.add_artist(el)
+        el.set_alpha(0.3)
+
+    plt.show()
