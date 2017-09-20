@@ -59,7 +59,7 @@ class Bayes:
 
     def score(self,x,y):
         y_pred = self.predict(x)
-        return len(np.where(y==y_pred)[0])/len(x)
+        return float(len(np.where(y==y_pred)[0]))/len(x)
 
 
 if __name__ == '__main__':
