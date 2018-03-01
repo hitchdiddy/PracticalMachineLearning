@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.base import BaseEstimator, ClassifierMixin
 from math import pi,exp
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
@@ -6,12 +7,13 @@ from scipy.spatial.distance import cdist
 from math import exp
 import matplotlib.pyplot as plt
 
+#class glvq(BaseEstimator, ClassifierMixin):
 class glvq():
 
-    def __init__(self):
-        self.max_prototypes_per_class = 5
-        self.learning_rate = 1
-        self.strech_factor = 20
+    def __init__(self,max_prototypes_per_class=5,learning_rate=2,strech_factor=10):
+        self.max_prototypes_per_class = max_prototypes_per_class
+        self.learning_rate = learning_rate
+        self.strech_factor = strech_factor
 
 
     def fit(self,x,y):
@@ -28,52 +30,56 @@ class glvq():
             self.y = np.hstack((self.y,y))
 
         for xi,yi in zip(x,y):
-            num_prototypes_per_class = len(np.where(self.labels == yi)[0])
-            if num_prototypes_per_class < self.max_prototypes_per_class: #add new
-                self.prototypes = np.vstack((self.prototypes,xi))
-                self.labels = np.hstack((self.labels,yi))
-                print("adding prototype for class"+str(yi))
-            elif len(set(self.labels)) > 1: #move prototype
+            self.fit_sample(xi,yi)
 
-                proto_dist = self.dist(np.array([xi]), self.prototypes)
-                proto_dist = proto_dist[0]
+    def fit_sample(self,xi,yi):
+        num_prototypes_per_class = len(np.where(self.labels == yi)[0])
+        if num_prototypes_per_class < self.max_prototypes_per_class:  # add new
+            self.prototypes = np.vstack((self.prototypes, xi))
+            self.labels = np.hstack((self.labels, yi))
+            #print("adding prototype for class" + str(yi))
+        elif len(set(self.labels)) > 1:  # move prototype
 
-                #find out nearest proto of same class and different class
-                smallest_dist_wrong = float("inf")
-                smallest_dist_right = float("inf")
-                w1i = -1
-                w2i = -1
-                for i,p in enumerate(proto_dist):
-                    if self.labels[i] == yi and smallest_dist_right > p:
-                        smallest_dist_right = p
-                        w1i = i
-                    if self.labels[i] != yi and smallest_dist_wrong > p:
-                        smallest_dist_wrong = p
-                        w2i = i
-                w1 = self.prototypes[w1i].copy()
-                w2 = self.prototypes[w2i].copy()
-                d1 = proto_dist[w1i]
-                d2 = proto_dist[w2i]
+            proto_dist = self.dist(np.array([xi]), self.prototypes)
+            proto_dist = proto_dist[0]
 
-                mu = (d1-d2)/(d1+d2)
-                #sigm = (1/(1+exp(-mu)))
-                derive = exp(mu*self.strech_factor)/((exp(mu*self.strech_factor)+1)*(exp(mu*self.strech_factor)+1))
-                print('mu: '+str(mu)+' derive: '+str(derive))
-                # GLVQ
-                self.prototypes[w1i] = w1 + self.learning_rate * derive * (d2 / ((d1 + d2) * (d1 + d2))) * ( xi - w1)
-                self.prototypes[w2i] = w2 - self.learning_rate * derive * (d1 / ((d1 + d2) * (d1 + d2))) * ( xi - w2)
-                print('derive '+str(derive))
-                print('move p1 from '+str(w1)+' to '+str(self.prototypes[w1i]))
-                print('move p2 from '+str(w2)+' to '+str(self.prototypes[w2i]))
+            # find out nearest proto of same class and different class
+            smallest_dist_wrong = float("inf")
+            smallest_dist_right = float("inf")
+            w1i = -1
+            w2i = -1
+            for i, p in enumerate(proto_dist):
+                if self.labels[i] == yi and smallest_dist_right > p:
+                    smallest_dist_right = p
+                    w1i = i
+                if self.labels[i] != yi and smallest_dist_wrong > p:
+                    smallest_dist_wrong = p
+                    w2i = i
+            w1 = self.prototypes[w1i].copy()
+            w2 = self.prototypes[w2i].copy()
+            d1 = proto_dist[w1i]
+            d2 = proto_dist[w2i]
 
-            else:
-                print('cant move because only one labeled class')
+            mu = (d1 - d2) / (d1 + d2)
+            # sigm = (1/(1+exp(-mu)))
+            derive = exp(mu * self.strech_factor) / (
+            (exp(mu * self.strech_factor) + 1) * (exp(mu * self.strech_factor) + 1))
+            #print('mu: ' + str(mu) + ' derive: ' + str(derive))
+            # GLVQ
+            self.prototypes[w1i] = w1 + self.learning_rate * derive * (d2 / ((d1 + d2) * (d1 + d2))) * (xi - w1)
+            self.prototypes[w2i] = w2 - self.learning_rate * derive * (d1 / ((d1 + d2) * (d1 + d2))) * ( xi - w2)
+            #print('derive ' + str(derive))
+            #print('move p1 from ' + str(w1) + ' to ' + str(self.prototypes[w1i]))
+            #print('move p2 from ' + str(w2) + ' to ' + str(self.prototypes[w2i]))
 
+        else:
+            print('cant move because only one labeled class')
+            print(set(self.labels))
     def dist(self,x,y):
         return cdist(x,y,'euclidean')
 
     def predict_proba(self,x):
-        if len(set(self.y)) < 2:
+        if not hasattr(self,'labels') or len(set(self.labels)) < 2:
             return [0]*len(x)
         ds = self.dist(x,self.prototypes)
         relsims = []
@@ -97,11 +103,17 @@ class glvq():
         return prototypes_i
 
     def predict(self,x):
+            if len(set(self.labels)) < 2:
+                return [-1] * len(x)
             return np.array(self.labels[np.argmin(self.dist(x,self.prototypes), axis=1)],np.int)
+
+    def predict_sample(self,x):
+            return self.predict(x[np.newaxis])
 
     def score(self,x,y):
         y_pred = self.predict(x)
         return float(len(np.where(y==y_pred)[0]))/len(x)
+
 
     def visualize_2d(self,ax=None):
         if not hasattr(self,'pltCount'):
@@ -125,9 +137,15 @@ class glvq():
 
 
 if __name__ == '__main__':
-    x,y = make_classification(n_samples=5000, n_features=2, n_informative=1, n_redundant=0, n_repeated=0,
-                                         n_classes=2, n_clusters_per_class=1, weights=None, flip_y=0.01, class_sep=0.5,
-                                         hypercube=True, shift=0.0, scale=1.0, shuffle=True, random_state=42)
+    # x,y = make_classification(n_samples=500, n_features=2, n_informative=2, n_redundant=0, n_repeated=0,
+    #                                      n_classes=2, n_clusters_per_class=1, weights=None, flip_y=0.01, class_sep=0.5,
+    #                                      hypercube=True, shift=0.0, scale=1.0, shuffle=True, random_state=43)
+    x = np.random.multivariate_normal((0,0), [[1,0],[0,1]], 500)
+    x = np.vstack((x,np.random.multivariate_normal((0.5,0), [[1,0],[0,1]], 500)))
+    y = np.array([0 for _ in range(500)])
+    y = np.hstack((y,[1 for _ in range(500)]))
+
+
     x_train, x_test, y_train, y_test = train_test_split( x, y, test_size = 0.33, random_state = 45)
     b = glvq()
 
