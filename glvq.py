@@ -94,7 +94,7 @@ class glvq():
         labels_included = []
         prototypes_i = []
 
-        for id,d in enumerate(ds):
+        for id, d in enumerate(ds):
             if not self.labels[d] in labels_included:
                 labels_included.append(self.labels[d])
                 prototypes_i.append(d)
@@ -133,7 +133,6 @@ class glvq():
         self.pltCount +=1
 
         plt.ioff()
-
 
 
 if __name__ == '__main__':

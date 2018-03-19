@@ -11,14 +11,17 @@ from math import pi,exp
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 
+
 class Bayes:
     def __init__(self):
         pass
-    def norm2d(self,mu,sigma,point,n=2):
+
+    def norm2d(self, mu, sigma, point, n=2):
         denom = ((2 * pi)**n * np.linalg.det(sigma)) ** .5
         dif = (point - mu)[np.newaxis]
         num = exp(-0.5* np.matmul(np.matmul(dif, np.linalg.inv(sigma)),dif.transpose())[0][0])
         return num / denom
+
     #train is just for calculating each mu and sigma
     def train(self,x,y):
         self.num_train_data = len(y)
