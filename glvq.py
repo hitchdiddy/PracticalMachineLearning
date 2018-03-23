@@ -6,17 +6,22 @@ from sklearn.model_selection import train_test_split
 from scipy.spatial.distance import cdist
 from math import exp
 import matplotlib.pyplot as plt
-
-#class glvq(BaseEstimator, ClassifierMixin):
+import sys
 class glvq():
 
-    def __init__(self,max_prototypes_per_class=5,learning_rate=2,strech_factor=10):
-        self.max_prototypes_per_class = max_prototypes_per_class
+    def __init__(self,max_prototypes_per_class=5,learning_rate=2,strech_factor=10,placement_strategy=None):
+        """Constructor takes some additional arguments like max_prototypes_per_class, learning_rate. Additionally a
+        placement strategy can passed as a callback. The function takes one sample x and corresponding label y and
+        returns True if a new prototype should be placed otherwise false. Then the prototype is moved (see fit sample)."""
+        self.max_prototypes_per_class = sys.maxsize if max_prototypes_per_class is None else max_prototypes_per_class
         self.learning_rate = learning_rate
         self.strech_factor = strech_factor
+        self.placement_strategy = placement_strategy if placement_strategy is not None else self.placement_always
+
 
 
     def fit(self,x,y):
+        """fit samples x and y incrementally. x and y are saved together with the yet trained samples in self.x and self.y"""
         x = np.array(x)
         y = np.array(y)
         feat_dim = x.shape[1]
@@ -32,14 +37,28 @@ class glvq():
         for xi,yi in zip(x,y):
             self.fit_sample(xi,yi)
 
+
+
+    def placement_adaptive(self,xi,yi):
+        """if the new sample got classified correctly before training it, no prototype is inserted."""
+        return self.predict([xi]) != [yi]
+    def placement_always(self,xi,yi):
+        """always insert new prototype"""
+        return True
+
     def fit_sample(self,xi,yi):
+        """fit a specific sample incrementally. Checks if a new prototype is neccessary (with self.placement_strategy).
+        If so, a new prototype is inserted, otherwise the nearest prototype is moved corresponding to GLVQ update rule.
+        """
         num_prototypes_per_class = len(np.where(self.labels == yi)[0])
-        if num_prototypes_per_class < self.max_prototypes_per_class:  # add new
+        if (num_prototypes_per_class == 0 or self.placement_strategy(xi,yi)) \
+                and not num_prototypes_per_class >= self.max_prototypes_per_class:  # add new
+            print('PLACE NEW prototype for class '+str(yi)+' (number of prototypes for this class: '+str(num_prototypes_per_class)+')')
             self.prototypes = np.vstack((self.prototypes, xi))
             self.labels = np.hstack((self.labels, yi))
             #print("adding prototype for class" + str(yi))
         elif len(set(self.labels)) > 1:  # move prototype
-
+            print('MOVE EXISTING prototype for class '+str(yi)+' (number of prototypes for this class: '+str(num_prototypes_per_class)+')')
             proto_dist = self.dist(np.array([xi]), self.prototypes)
             proto_dist = proto_dist[0]
 
@@ -75,10 +94,13 @@ class glvq():
         else:
             print('cant move because only one labeled class')
             print(set(self.labels))
+
     def dist(self,x,y):
+        """calculates the distance matrix used for determine the winner and looser prototype"""
         return cdist(x,y,'euclidean')
 
     def predict_proba(self,x):
+        """returns the relative distance of prototypes to samples from x"""
         if not hasattr(self,'labels') or len(set(self.labels)) < 2:
             return [0]*len(x)
         ds = self.dist(x,self.prototypes)
@@ -89,6 +111,7 @@ class glvq():
         return np.array(relsims)
 
     def get_win_loose_prototypes(self,dists,n=2):
+        """get the winning prototype and the n-1 loosing prototypes"""
         ds = np.argsort(dists)
         # the classes already included into prototype list
         labels_included = []
@@ -103,19 +126,23 @@ class glvq():
         return prototypes_i
 
     def predict(self,x):
-            if len(set(self.labels)) < 2:
-                return [-1] * len(x)
-            return np.array(self.labels[np.argmin(self.dist(x,self.prototypes), axis=1)],np.int)
+        """predicts samples from x"""
+        if len(set(self.labels)) < 2:
+            return [-1] * len(x)
+        return np.array(self.labels[np.argmin(self.dist(x,self.prototypes), axis=1)],np.int)
 
     def predict_sample(self,x):
-            return self.predict(x[np.newaxis])
+        """predicts a single sample"""
+        return self.predict(x[np.newaxis])
 
     def score(self,x,y):
+        """0/1 loss"""
         y_pred = self.predict(x)
         return float(len(np.where(y==y_pred)[0]))/len(x)
 
 
     def visualize_2d(self,ax=None):
+        """draws a nice little visualization about the actual train state with matplotlib"""
         if not hasattr(self,'pltCount'):
             self.pltCount = 0
         if ax is None:
@@ -136,6 +163,7 @@ class glvq():
 
 
 if __name__ == '__main__':
+    """a small test program wich demonstrate the use of the classifier"""
     # x,y = make_classification(n_samples=500, n_features=2, n_informative=2, n_redundant=0, n_repeated=0,
     #                                      n_classes=2, n_clusters_per_class=1, weights=None, flip_y=0.01, class_sep=0.5,
     #                                      hypercube=True, shift=0.0, scale=1.0, shuffle=True, random_state=43)
