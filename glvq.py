@@ -102,7 +102,7 @@ class glvq():
     def predict_proba(self,x):
         """returns the relative distance of prototypes to samples from x"""
         if not hasattr(self,'labels') or len(set(self.labels)) < 2:
-            return [0]*len(x)
+            return np.array([0]*len(x))
         ds = self.dist(x,self.prototypes)
         relsims = []
         for d in ds:
@@ -127,7 +127,7 @@ class glvq():
 
     def predict(self,x):
         """predicts samples from x"""
-        if len(set(self.labels)) < 2:
+        if not hasattr(self,'labels') or len(set(self.labels)) < 2:
             return [-1] * len(x)
         return np.array(self.labels[np.argmin(self.dist(x,self.prototypes), axis=1)],np.int)
 
