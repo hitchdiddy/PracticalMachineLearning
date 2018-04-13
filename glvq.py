@@ -42,6 +42,11 @@ class glvq():
     def placement_adaptive(self,xi,yi):
         """if the new sample got classified correctly before training it, no prototype is inserted."""
         return self.predict([xi]) != [yi]
+
+    def placement_certainty_adaptive(self,xi,yi,thresh=0.8):
+        """if the new sample got classified correctly before training it, no prototype is inserted."""
+        return self.predict([xi]) != [yi] or self.predict_proba([xi]) < thresh
+
     def placement_always(self,xi,yi):
         """always insert new prototype"""
         return True
@@ -53,12 +58,12 @@ class glvq():
         num_prototypes_per_class = len(np.where(self.labels == yi)[0])
         if (num_prototypes_per_class == 0 or self.placement_strategy(xi,yi)) \
                 and not num_prototypes_per_class >= self.max_prototypes_per_class:  # add new
-            print('PLACE NEW prototype for class '+str(yi)+' (number of prototypes for this class: '+str(num_prototypes_per_class)+')')
+            # print('PLACE NEW prototype for class '+str(yi)+' (number of prototypes for this class: '+str(num_prototypes_per_class)+')')
             self.prototypes = np.vstack((self.prototypes, xi))
             self.labels = np.hstack((self.labels, yi))
             #print("adding prototype for class" + str(yi))
         elif len(set(self.labels)) > 1:  # move prototype
-            print('MOVE EXISTING prototype for class '+str(yi)+' (number of prototypes for this class: '+str(num_prototypes_per_class)+')')
+            # print('MOVE EXISTING prototype for class '+str(yi)+' (number of prototypes for this class: '+str(num_prototypes_per_class)+')')
             proto_dist = self.dist(np.array([xi]), self.prototypes)
             proto_dist = proto_dist[0]
 
@@ -99,16 +104,40 @@ class glvq():
         """calculates the distance matrix used for determine the winner and looser prototype"""
         return cdist(x,y,'euclidean')
 
-    def predict_proba(self,x):
+    def predict_proba(self,x,full_matrix=False,return_winning_prototype_i=False):
         """returns the relative distance of prototypes to samples from x"""
+
+
         if not hasattr(self,'labels') or len(set(self.labels)) < 2:
-            return np.array([0]*len(x))
+            rtn = np.array([0] * len(x)) if not full_matrix else np.zeros((len(x),1))
+            if return_winning_prototype_i:
+                return rtn, np.array([None] * len(x))
+            else:
+                return rtn
+
+        num_classes = len(set(self.labels))
+
         ds = self.dist(x,self.prototypes)
         relsims = []
+        winning_prototype_is = []
         for d in ds:
-            winner,looser = self.get_win_loose_prototypes(d)
-            relsims.append((d[looser]-d[winner])/(d[looser]+d[winner]))
-        return np.array(relsims)
+            if full_matrix:
+                protos = self.get_win_loose_prototypes(d,num_classes)
+                proto_relsims = np.zeros((num_classes))
+                # step through the loosers and calculate relsim for all to get full certainty matrix
+                for i,p in enumerate(protos[1:]):
+                    proto_relsims[protos[i]] = (d[p] - d[protos[0]]) / (d[p] + d[protos[0]])
+                relsims.append(proto_relsims)
+                winning_prototype_is.append(protos[0])
+            else:
+                winner,looser = self.get_win_loose_prototypes(d)
+                relsims.append((d[looser]-d[winner])/(d[looser]+d[winner]))
+                winning_prototype_is.append(winner)
+
+        if return_winning_prototype_i:
+            return (np.array(relsims),np.array(winning_prototype_is))
+        else:
+            return np.array(relsims)
 
     def get_win_loose_prototypes(self,dists,n=2):
         """get the winning prototype and the n-1 loosing prototypes"""
