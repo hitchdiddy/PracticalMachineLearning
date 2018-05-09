@@ -85,7 +85,7 @@ class dbscan:
     @staticmethod
     def fit_single(x,i,eps,min_pts,dists=None ):
         # calc dist matrix
-        dists = dists if dists else cdist(x,x,'euclidean')
+        dists = dists if dists is not None else cdist(x,x,'euclidean')
 
         visited = np.zeros(len(x),dtype='bool')
         clusters = np.zeros(len(x))
