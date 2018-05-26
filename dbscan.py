@@ -109,13 +109,33 @@ class dbscan:
         return clusters==1
 
 
+    @staticmethod
+    def DBQE(x,xe,eps,min_pts,dists=None ):
+        # calc dist matrix if not passed
+        dists = dists if dists is not None else cdist(x,x,'euclidean')
+
+        v = np.zeros(len(x),dtype='bool')
+        c = np.zeros(len(x))
+        t = np.array([xe])
+        c[xe] = 1
+        while len(t) > 0:
+            a = t[0]
+            t = np.delete(t, 0)
+            if not v[a]:
+                v[a] = True
+                n = dbscan.region_query_static(a,dists,eps)
+                if len(n) >= min_pts:
+                    c[a] = 1
+                    t = np.hstack((t, n))
+        return c==1
+
 if __name__ == '__main__':
     from sklearn.datasets.samples_generator import make_blobs
     X, y = make_blobs(n_samples=90, centers=2, n_features=2, random_state = 0, cluster_std=.3)
     
 
     db = dbscan(1.5,3)
-    clusters = dbscan.fit_single(X,0,1.5,3)
+    clusters = dbscan.DBQE(X,0,1.5,3)
 
 
 
