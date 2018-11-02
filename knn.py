@@ -50,7 +50,10 @@ if __name__ == '__main__':
     x, y = make_classification(n_features=2, n_redundant=0, n_informative=2, random_state=0, n_clusters_per_class=2)
     clf = knn(5)
 
-    clf.fit(x,y)
+    from common.experiment_helper import group_list
+
+    for i in group_list(range(len(x)),5):
+        clf.fit_partial(x[i],y[i])
 
     y_pred = clf.predict(x)
 
