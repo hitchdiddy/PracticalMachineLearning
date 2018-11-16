@@ -158,7 +158,7 @@ class glvq():
         """predicts samples from x"""
         if not hasattr(self,'labels') or len(set(self.labels)) < 2:
             return [-1] * len(x)
-        return np.array(self.labels[np.argmin(self.dist(x,self.prototypes), axis=1)],np.int)
+        return np.array(self.labels[np.argmin(self.dist(x,self.prototypes), axis=1)])
 
     def predict_sample(self,x):
         """predicts a single sample"""
@@ -198,8 +198,8 @@ if __name__ == '__main__':
     #                                      hypercube=True, shift=0.0, scale=1.0, shuffle=True, random_state=43)
     x = np.random.multivariate_normal((0,0), [[1,0],[0,1]], 500)
     x = np.vstack((x,np.random.multivariate_normal((0.5,0), [[1,0],[0,1]], 500)))
-    y = np.array([0 for _ in range(500)])
-    y = np.hstack((y,[1 for _ in range(500)]))
+    y = np.array(['class1' for _ in range(500)])
+    y = np.hstack((y,['class2' for _ in range(500)]))
 
 
     x_train, x_test, y_train, y_test = train_test_split( x, y, test_size = 0.33, random_state = 45)
@@ -208,10 +208,10 @@ if __name__ == '__main__':
     ax = plt.figure().gca()
 
     for x,y in zip(x_train,y_train):
-        b.fit(x[np.newaxis],y[np.newaxis])
+        b.fit([x],[y])
 
-    b.visualize_2d(ax)
-    plt.show()
+    #b.visualize_2d(ax)
+    #plt.show()
 
     print(b.predict(x_test))
     print(b.predict_proba(x_test))
