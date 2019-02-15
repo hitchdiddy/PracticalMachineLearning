@@ -22,6 +22,10 @@ class glvq():
 
     def fit(self,x,y):
         """fit samples x and y incrementally. x and y are saved together with the yet trained samples in self.x and self.y"""
+        if len(x) != len(y):
+            raise Exception('feature and label vectors have to have the same size')
+        if len(x) == 0:
+            raise Exception('can not train empty sequence')
         x = np.array(x)
         y = np.array(y)
         feat_dim = x.shape[1]
